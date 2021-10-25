@@ -9,6 +9,7 @@ from algosdk import account, encoding, mnemonic,transaction
 from algosdk.future.transaction import AssetTransferTxn, PaymentTxn
 from algosdk.v2client import algod
 from algorand_demo import choice_trade
+
 algod_address = ""
 algod_token = ""
 #Initializes Client for node

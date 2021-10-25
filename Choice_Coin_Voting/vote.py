@@ -16,18 +16,26 @@ from algosdk.v2client import algod
 import hashlib
 import matplotlib
 import matplotlib.pyplot as plt
+from utils import *
+import random
+import io
+import base64
+  
 
 # Matplot parameters for the matplotlib function to generate a new plot.
 matplotlib.use('TkAgg')
-algod_address = "" # Put Algod Client address here
-algod_token = "" # Put Algod Token here
+matplotlib.use('agg') #or matplotlib.pyplot.switch_backend('Agg')
+algod_address = "https://testnet-algorand.api.purestake.io/ps2" # Put Algod Client address here
+algod_token = "6HrMYd5r3C59gsCd1zHip5JgDDVwGTAu61L8wQ28" # Put Algod Token here
 headers = {"X-API-Key": algod_token }
 # Initializes client for node.
-algod_client = algod.AlgodClient(algod_token,algod_address,headers)
+algod_client = algod.AlgodClient(algod_token, algod_address, headers)
+
+
 
 # Escrow creation.
-escrow_address = "" # Put in main fund address here
-escrow_mnemonic = "" # Put in main fund receiver_mnemonic here
+escrow_address = "DJKV6SQTY77QLCE2EPT3X4EVBOJBXWQ344PX5FH24KSPWZLQBV24EV6DDM" # Put in main fund address here
+escrow_mnemonic = "group dice custom favorite usage stuff stable glimpse mansion call father grape engine club hawk emerge latin any gravity canal galaxy rebel acid about exotic" # Put in main fund receiver_mnemonic here
 escrow_key = mnemonic.to_private_key(escrow_mnemonic)
 choice_id = 21364625 # Official Test Asset ID for Choice Coin
 
@@ -35,17 +43,40 @@ choice_id = 21364625 # Official Test Asset ID for Choice Coin
 #To add more decisions for the election process, add the address for the new decision here.
 #Then, add an appropriate boolean statement at line 100 of this file. Be sure to also add additional 
 #counts at line 148 of this file as well. 
-decision_one = ""
-decision_two = ""
+decision_one = "5VXL2O2A4Q3766XYDS4DUQDLEDK7KWYL2TRK2AIY6L2DOKPIQIATNEYWNY"
+decision_one_mnemonic = "crop spoon stock fame erase away lemon cheap sunset relax mouse industry daring need clock icon protect harsh exhibit hole together lobster student about awkward"
+decision_one_key = mnemonic.to_private_key(decision_one_mnemonic)
+
+decision_two = "QDPYOTTGDVHGIL7DHJXJP4MOXPBA4Z2NKCWJMGIUXTQHHZHDS72JWBMBMQ"
+decision_two_mnemonic = "tooth cabin child plastic fabric day assume case caught winter ranch virus tide deposit bind antique canvas august rocket stairs seminar card topic able sample"
+decision_two_key = mnemonic.to_private_key(decision_two_mnemonic)
+
 corporate_decision_one = ""
 corporate_decision_two = ""
 
 # Clawback Address required to reset accounts to start new voting process.
 # Sets up accounts for both the regular election process and the corporate decision process. 
 # Add more accounts to adjust for more decisions.
-clawback_address = ""
-clawback_mnemonic = ""
+clawback_address = "2UM6QNIORCWQUE4R3YY2RYOQ4VHEXVVUOS3RB3OF5X5X6AQIST7CEBOFZY"
+clawback_mnemonic = "between source bronze deliver robot wrap pull own power tank art patient slight analyst crew rotate theme liquid birth loop heart decline seven ability spread"
 clawback_key = mnemonic.to_private_key(clawback_mnemonic)
+
+# OPT-IN CHOICE INTO THREE ACCOUNTS
+# Check if asset_id is in account asset holdings prior
+# to opt-in
+addresses = [
+    {"addr": decision_one, "key": decision_one_key}, 
+    {"addr": decision_two, "key": decision_two_key}, 
+    {"addr": clawback_address, "key": clawback_key},
+    {"addr": escrow_address, "key": escrow_key}
+]
+asset_optin(algod_client, addresses, choice_id)
+
+
+
+
+
+
 
 # This function counts the number of Choice Coin in an account. 
 # It first fetches the account_info, and specifically searches among the assets that the account owns for Choice Coin.
@@ -60,8 +91,10 @@ def count(address):
         if asset["asset-id"] ==  choice_id:
             amount = asset.get("amount")
             message = amount
-            return message
+            return int(message)
+
     error = 'The account has not opted-in to the asset yet.'
+    print(error)
     return error
 
 # This function hashes a string using the SHA-512 cryptographic scheme. 
@@ -123,11 +156,17 @@ def show_results(yes_count,no_count):
     names = ['Candidate 1', 'Candidate 2'] # Define the two decisions.
     values = [yes_count,no_count] # Fetch the total number of votes for each decision.
     # Define a new pyplot
+    s = io.BytesIO()
     plt.figure(figsize=(9, 3))
     plt.subplot(131)
     plt.bar(names, values)
     plt.suptitle('Election Results')
-    plt.savefig('/home/archie/Inital_Demo/static/img/Figure_1.png')
+    plt.savefig(s, format='png', bbox_inches="tight")
+    plt.close()
+    s = base64.b64encode(s.getvalue()).decode("utf-8").replace("\n", "")
+    return s
+    #return '<img align="left" src="data:image/png;base64,%s">' % s
+    #plt.savefig('Figure_1.png')
     # Return the results.
 
 def show_corporate_results(yes_count,no_count):
@@ -144,17 +183,17 @@ def show_corporate_results(yes_count,no_count):
 def count_votes():
     yes_count = count(decision_one)
     no_count = count(decision_two)
-    show_results(yes_count,no_count)
+    result = show_results(yes_count,no_count)
     if yes_count > no_count:
         if yes_count == 1:
-            return "The Voting Process has ended. Candidate One received the most votes with {0} vote.".format(yes_count)
+            return "The Voting Process has ended. Candidate One received the most votes with {0} vote.".format(yes_count), result
         else:
-            return "The Voting Process has ended. Candidate One received the most votes with {0} votes.".format(yes_count)
+            return "The Voting Process has ended. Candidate One received the most votes with {0} votes.".format(yes_count), result
     if no_count > yes_count:
         if no_count == 1:
-            return "The Voting Process has ended. Candidate Two received the most votes with {0} vote.".format(no_count)
+            return "The Voting Process has ended. Candidate Two received the most votes with {0} vote.".format(no_count), result
         else:
-            return "The Voting Process has ended. Candidate Two received the most votes with {0} votes.".format(no_count)
+            return "The Voting Process has ended. Candidate Two received the most votes with {0} votes.".format(no_count), result
 
     else:
         # Random sample generated from adiabatic quantum computer.
@@ -163,9 +202,9 @@ def count_votes():
         # Random sample from quantum sample.
         Q = random.choice(quantum_sample)
         if Q:
-            return("Tie. The Quantum Oracle selects Candidate One!")
+            return "Tie. The Quantum Oracle selects Candidate One!", result
         else:
-            return("Tie. The Quantum Oracle selects Candidate Two!")
+            return "Tie. The Quantum Oracle selects Candidate Two!", result
 
 def count_corporate_votes():
     yes_count = count(corporate_decision_one)
