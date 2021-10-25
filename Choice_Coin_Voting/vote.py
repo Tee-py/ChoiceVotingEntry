@@ -70,7 +70,7 @@ addresses = [
     {"addr": clawback_address, "key": clawback_key},
     {"addr": escrow_address, "key": escrow_key}
 ]
-asset_optin(algod_client, addresses, choice_id)
+#asset_optin(algod_client, addresses, choice_id)
 
 
 

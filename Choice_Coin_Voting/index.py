@@ -1,25 +1,56 @@
 # Open Source under Apache License
 #To add additional decisions/candiates, add an additional boolean at line 128.
 from flask import Flask, request, render_template, redirect, url_for
-#from algorand_demo import algo_trade,choice_trade,create_optin,main_exchange
+from flask_sqlalchemy import SQLAlchemy
 from algosdk import account, encoding, mnemonic
-from vote import election_voting, hashing, corporate_voting, count_votes, count_corporate_votes
-from vote import reset_votes, reset_corporate_votes
+from vote import *
 from algosdk.future.transaction import AssetTransferTxn, PaymentTxn
 from algosdk.v2client import algod
 import rsa
 from flaskext.mysql import MySQL
+from utils import generate_algorand_keypair, asset_optin
 import hashlib
 
 app = Flask(__name__)
-mysql = MySQL()
-app.config['MYSQL_DATABASE_USER'] = 'root'
-app.config['MYSQL_DATABASE_PASSWORD'] = ''
-app.config['MYSQL_DATABASE_DB'] = 'voting'
-app.config['MYSQL_DATABASE_HOST'] = ''
-mysql.init_app(app)
-conn = mysql.connect()
-cur = conn.cursor()
+
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:''@localhost/voting'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
+
+#Model To Store Voters in The database
+class Voter(db.Model):
+	id = db.Column(db.Integer, primary_key = True)
+	name = db.Column(db.String(100), unique = True)
+	dl = db.Column(db.String(512), unique = True)
+	ssn = db.Column(db.String(512), unique = True)
+    
+	def __init__(self, name, dl, ssn):
+		self.name = name
+		self.dl = dl
+		self.ssn = ssn
+
+#Model To store candidates
+class Candidate(db.Model):
+	id = db.Column(db.Integer, primary_key = True)
+	name = db.Column(db.String(100), unique = True)
+	address = db.Column(db.String(512), unique = True)
+
+	def __init__(self, name, address):
+		self.name = name
+		self.address = address
+	
+
+
+#mysql = MySQL()
+#SqlAlchemy Database Configuration With Mysql
+#app.config['MYSQL_DATABASE_USER'] = 'root'
+#app.config['MYSQL_DATABASE_PASSWORD'] = ''
+#app.config['MYSQL_DATABASE_DB'] = 'voting'
+#app.config['MYSQL_DATABASE_HOST'] = ''
+#mysql.init_app(app)
+#conn = mysql.connect()
+#cur = conn.cursor()
 admin_key = "536aecc94ecdd1d499e1496d658c790432f25199f3c810761dbe1d6605da9588cb0c32cd2677cf883e8af59b2d157146bd3b22e3554fd4e574abfa1a41efc41f"
 
 finished = False
@@ -30,6 +61,50 @@ validated = False
 def start():
 	""" Start page """
 	return render_template('index.html')
+
+@app.route('/create', methods = ['POST','GET'])
+def create():
+	error = ""
+	message = ""
+	if request.method == 'POST':
+		name = request.form.get('Name')
+		ssn = hashing(str(request.form.get('Social')))
+		dl = hashing(str(request.form.get('Drivers')))
+		Key = hashing(str(request.form.get('Key')))
+		
+		if str(Key) == admin_key:
+			print("Key is correct")
+			voter = Voter(name, ssn, dl)
+			db.session.add(voter)
+			db.session.commit()
+			message = "Voter Added Successfully"
+		else:
+			print("Wrong Key", request.form.get("Key"))
+			error = "Incorrect Admin Key"
+	return render_template('create.html', error=error, message=message)
+
+@app.route('/candidate/create', methods = ['POST','GET'])
+def create_candidate():
+	error = ""
+	message = ""
+	if request.method == 'POST':
+		name = request.form.get('Name')
+		Key = hashing(str(request.form.get('Key')))
+		
+		if str(Key) == admin_key:
+			print("Key is correct")
+			#Generates Algorand Address
+			address, phrase = generate_algorand_keypair()
+			#Opts-In Choice For Candidate
+			asset_optin(algod_client, [{"addr": address, "key": mnemonic.to_private_key(phrase)}], choice_id)
+			candidate = Candidate(name, address)
+			db.session.add(candidate)
+			db.session.commit()
+			message = "Voter Added Successfully"
+		else:
+			print("Wrong Key", request.form.get("Key"))
+			error = "Incorrect Admin Key"
+	return render_template('create_candidate.html', error=error, message=message)
 
 @app.route('/start', methods = ['POST', 'GET'])
 def start_voting():
@@ -44,6 +119,8 @@ def start_voting():
 		else:
 			error = "Incorrect admin key"
 	return render_template("start.html", message = message, error = error)
+
+
 
 @app.route('/corporatestart', methods = ['POST', 'GET'])
 def start_corporate():
@@ -87,7 +164,7 @@ def corporate_end():
 		else:
 			error = "Incorrect admin key"
 	return render_template('corporateend.html', message = message, error = error)
-
+"""
 @app.route('/vote', methods = ['POST','GET'])
 def vote():
 	error = ''
@@ -97,19 +174,20 @@ def vote():
 	if request.method == 'POST':
 		Social = hashing(str(request.form.get('Social')))
 		Drivers = hashing(str(request.form.get('Drivers')))
-		cur.execute("SELECT * FROM accounts WHERE SS = %s AND DL = %s",(Social,Drivers))
-		account = cur.fetchone()
-		if account:
-			cur.execute("DELETE FROM accounts WHERE SS = %s and DL = %s",(Social,Drivers))
-			conn.commit()
-			validated = True
-			return redirect(url_for('submit'))
-		else:
-			error = 'Your info is incorrect'
+		#cur.execute("SELECT * FROM accounts WHERE SS = %s AND DL = %s",(Social,Drivers))
+		#account = cur.fetchone()
+		#if account:
+		#	cur.execute("DELETE FROM accounts WHERE SS = %s and DL = %s",(Social,Drivers))
+		#	conn.commit()
+		#	validated = True
+		#	return redirect(url_for('submit'))
+		#else:
+		#	error = 'Your info is incorrect'
 	elif finished == True:
 		message = count_votes()
 		return render_template("end.html", message = message, error = error)
 	return render_template('vote.html', message = message, error = error)
+"""
 
 @app.route('/submit', methods = ['POST', 'GET'])
 def submit():
@@ -131,6 +209,7 @@ def submit():
 				 error = "You did not enter a vote"
 	return render_template('submit.html', message = message, error = error)
 
+"""
 @app.route('/corporate', methods = ['POST','GET'])
 def corporate():
 	error = ''
@@ -161,25 +240,7 @@ def corporate():
 		return render_template('end.html' ,message = message, error = error)
 	return render_template('corporate.html', message = message, error = error)
 
-@app.route('/create', methods = ['POST','GET'])
-def create():
-	error = ""
-	message = ""
-	if request.method == 'POST':
-		Name = request.form.get('Name')
-		Social = hashing(str(request.form.get('Social')))
-		Drivers = hashing(str(request.form.get('Drivers')))
-		Key = hashing(str(request.form.get('Key')))
-		
-		if str(Key) == admin_key:
-			print("Key is correct")
-			cur.execute("INSERT INTO accounts (name, DL, SS) VALUES(%s,%s,%s)",((Name,Drivers,Social)))
-			conn.commit()
-			message = "Voter Added Successfully"
-		else:
-			print("Wrong Key", request.form.get("Key"))
-			error = "Incorrect Admin Key"
-	return render_template('create.html', error=error, message=message)
+
 
 @app.route('/corporate_creation',methods = ['POST','GET'])
 def corporate_create():
@@ -195,8 +256,9 @@ def corporate_create():
 
 @app.route('/about/')
 def about():
-	"""about"""
+	
 	return render_template('about.html')
+"""
 
 if __name__ == "__main__":
 	app.run(host='127.0.0.1', debug=True)

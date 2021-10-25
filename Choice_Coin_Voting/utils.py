@@ -5,10 +5,10 @@ from algosdk.future.transaction import AssetConfigTxn, AssetTransferTxn, AssetFr
 def generate_algorand_keypair():
     private_key, address = account.generate_account()
     phrase = mnemonic.from_private_key(private_key)
-    print("My address: {}".format(address))
-    print("My private key: {}".format(private_key))
-    print("My passphrase: {}".format(phrase))
-    return private_key, phrase
+    print("Generated address: {}".format(address))
+    print("Generated private key: {}".format(private_key))
+    print("Generated mnemonic: {}".format(phrase))
+    return address, phrase
 
 
 def wait_for_confirmation(client, txid):
