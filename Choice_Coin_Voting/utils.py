@@ -1,6 +1,35 @@
 from typing import List
 from algosdk import account, mnemonic
-from algosdk.future.transaction import AssetConfigTxn, AssetTransferTxn, AssetFreezeTxn
+from algosdk.encoding import is_valid_address
+from algosdk.account import address_from_private_key
+from algosdk.future.transaction import AssetConfigTxn, AssetTransferTxn, AssetFreezeTxn, PaymentTxn
+import base64
+
+
+def validate_address(addr):
+    """
+    Check if the string address is a valid Algorand address.
+    Args:
+        addr (str): base32 address
+    Returns:
+        bool: whether or not the address is valid
+    """
+    return is_valid_address(addr)
+
+def validate_mnemonic(address, phrase):
+    try:
+        addr = address_from_private_key(mnemonic.to_private_key(phrase))
+        if address == addr:
+            return True
+    except:
+        return False
+    return False
+
+def check_balance(address, client):
+    account_info = client.account_info(address)
+    balance = account_info.get('amount')
+    print("Account balance: {} microAlgos".format(balance))
+    return balance
 
 def generate_algorand_keypair():
     private_key, address = account.generate_account()
@@ -9,7 +38,6 @@ def generate_algorand_keypair():
     print("Generated private key: {}".format(private_key))
     print("Generated mnemonic: {}".format(phrase))
     return address, phrase
-
 
 def wait_for_confirmation(client, txid):
     """
@@ -25,6 +53,36 @@ def wait_for_confirmation(client, txid):
         txinfo = client.pending_transaction_info(txid)
     print("Transaction {} confirmed in round {}.".format(txid, txinfo.get('confirmed-round')))
     return txinfo
+
+def holding_asset(client, account, asset_id):
+    params = client.suggested_params()
+    account_info = client.account_info(account)
+    holding = False
+    idx = 0
+    for my_account_info in account_info['assets']:
+        scrutinized_asset = account_info['assets'][idx]
+        idx = idx + 1    
+        if (scrutinized_asset['asset-id'] == asset_id):
+            holding = True
+            break
+    return holding
+
+def send_algo(client, sender, receiver, phrase, amount):
+    
+    #send algorand
+    params = client.suggested_params()
+    unsigned_txn = PaymentTxn(sender, params, receiver, amount, None, "Candidate Creation For Choice Voting")
+    signed_txn = unsigned_txn.sign(mnemonic.to_private_key(phrase))
+    txid = client.send_transaction(signed_txn)
+    
+    #wait for confirmation
+    try:
+        wait_for_confirmation(client, txid)  
+    except Exception as err:
+        print(err)
+        return True
+    print(f"View Transaction At https://testnet.algoexplorer.io/tx/{txid}")
+    return False
 
 
 #   Utility function used to print asset holding for account and assetid
@@ -53,9 +111,7 @@ def asset_optin(client, accounts: List, asset_id: str):
             if (scrutinized_asset['asset-id'] == asset_id):
                 holding = True
                 break
-
         if not holding:
-            # Use the AssetTransferTxn class to transfer assets and opt-in
             txn = AssetTransferTxn(
                 sender=account['addr'],
                 sp=params,
@@ -64,9 +120,5 @@ def asset_optin(client, accounts: List, asset_id: str):
                 index=asset_id)
             stxn = txn.sign(account['key'])
             txid = client.send_transaction(stxn)
-            print(txid)
-            # Wait for the transaction to be confirmed
             wait_for_confirmation(client, txid)
-    # Now check the asset holding for that account.
-    # This should now show a holding with a balance of 0.
-        print_asset_holding(client, account['addr'], asset_id)
+        

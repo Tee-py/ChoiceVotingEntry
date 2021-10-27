@@ -8,7 +8,7 @@ from algosdk.future.transaction import AssetTransferTxn, PaymentTxn
 from algosdk.v2client import algod
 import rsa
 from flaskext.mysql import MySQL
-from utils import generate_algorand_keypair, asset_optin
+from utils import *
 import hashlib
 
 app = Flask(__name__)
@@ -34,23 +34,29 @@ class Voter(db.Model):
 class Candidate(db.Model):
 	id = db.Column(db.Integer, primary_key = True)
 	name = db.Column(db.String(100), unique = True)
+	biography = db.Column(db.String(100))
 	address = db.Column(db.String(512), unique = True)
+	phrase = db.Column(db.String(512), unique = True)
 
-	def __init__(self, name, address):
+	def __init__(self, name, biography, address, phrase):
 		self.name = name
+		self.biography = biography
 		self.address = address
+		self.phrase = phrase
+
+#Model To Store Config for Voting
+class VotingConfig(db.Model):
+	id = db.Column(db.Integer, primary_key = True)
+	finished = db.Column(db.Boolean) #starts/ends a voting process
+	escrow = db.Column(db.String(512), nullable=True)
+	escrow_phrase = db.Column(db.String(512), nullable=True)
 	
 
-
-#mysql = MySQL()
-#SqlAlchemy Database Configuration With Mysql
-#app.config['MYSQL_DATABASE_USER'] = 'root'
-#app.config['MYSQL_DATABASE_PASSWORD'] = ''
-#app.config['MYSQL_DATABASE_DB'] = 'voting'
-#app.config['MYSQL_DATABASE_HOST'] = ''
-#mysql.init_app(app)
-#conn = mysql.connect()
-#cur = conn.cursor()
+	def __init__(self, finished, escrow, phrase):
+		self.finished = finished
+		self.escrow = escrow
+		self.escrow_phrase = phrase
+	
 admin_key = "536aecc94ecdd1d499e1496d658c790432f25199f3c810761dbe1d6605da9588cb0c32cd2677cf883e8af59b2d157146bd3b22e3554fd4e574abfa1a41efc41f"
 
 finished = False
@@ -62,8 +68,51 @@ def start():
 	""" Start page """
 	return render_template('index.html')
 
-@app.route('/create', methods = ['POST','GET'])
-def create():
+@app.route("/config", methods = ["GET", "POST"])
+def set_config():
+	error = ""
+	message = ""
+	if request.method == 'POST':
+		escrow = request.form.get('escrow')
+		phrase = request.form.get('phrase')
+		Key = hashing(str(request.form.get('Key')))
+		if str(Key) == admin_key:
+			#Verify escrow address and check if escrow as optin-choice
+			if not validate_address(escrow):
+				error = "Invalid Escrow Address"
+				return render_template('config.html', error=error, message=message)
+			if not validate_mnemonic(escrow, phrase):
+				error = "Account Phrase is Incorrect."
+				return render_template('config.html', error=error, message=message)
+
+			if not holding_asset(algod_client, escrow, choice_id):
+				error = "Escrow Address Does Not Have Choice in Assets."
+				return render_template('confightml', error=error, message=message)
+			
+			balance = check_balance(escrow, algod_client)
+			if balance < 1000:
+				error = "Insufficent Balance in Escrow Address."
+				return render_template('confightml', error=error, message=message)
+			#fetches existing configurations.
+			config = VotingConfig.query.filter_by(id=1).first()
+			if config:
+				config.escrow = escrow
+				config.phrase = phrase
+				db.session.commit()
+				message = "Config Updated Successfully."
+			else:
+				config = VotingConfig(True, escrow, phrase)
+				db.session.add(config)
+				db.session.commit()
+				message = "Config Created Successfully."
+			
+		else:
+			print("Wrong Key", request.form.get("Key"))
+			error = "Incorrect Admin Key"
+	return render_template('config.html', error=error, message=message)
+
+@app.route('/voter/create', methods = ['POST','GET'])
+def add_voter():
 	error = ""
 	message = ""
 	if request.method == 'POST':
@@ -74,6 +123,10 @@ def create():
 		
 		if str(Key) == admin_key:
 			print("Key is correct")
+			#checks if voter exists in db
+			if Voter.query.filter_by(ssn=ssn).first():
+				error = "Voter Exists"
+				return render_template('create.html', error=error, message=message)
 			voter = Voter(name, ssn, dl)
 			db.session.add(voter)
 			db.session.commit()
@@ -84,23 +137,41 @@ def create():
 	return render_template('create.html', error=error, message=message)
 
 @app.route('/candidate/create', methods = ['POST','GET'])
-def create_candidate():
+def add_candidate():
 	error = ""
 	message = ""
 	if request.method == 'POST':
 		name = request.form.get('Name')
+		biography = request.form.get('bio')
 		Key = hashing(str(request.form.get('Key')))
-		
 		if str(Key) == admin_key:
-			print("Key is correct")
-			#Generates Algorand Address
+			if Candidate.query.filter_by(name=name).first():
+				error = "Candidate Exists"
+				return render_template('create_candidate.html', error=error, message=message)
+			config = VotingConfig.query.filter_by(id=1).first()
+			if not config:
+				error = "Cannot Add Candidate Without setting Configurations."
+				return render_template('create_candidate.html', error=error, message=message)
+			#Generate Algorand Address and key_pair
+			#Send 0.1Algo to the Address
+			#Opt-in Choice
 			address, phrase = generate_algorand_keypair()
-			#Opts-In Choice For Candidate
+			error = send_algo(algod_client, config.escrow, address, config.escrow_phrase, 205000)
+			if error:
+				error = "Error While Creating Candidate. Try Again"
+				return render_template('create_candidate.html', error=error, message=message)
 			asset_optin(algod_client, [{"addr": address, "key": mnemonic.to_private_key(phrase)}], choice_id)
-			candidate = Candidate(name, address)
-			db.session.add(candidate)
-			db.session.commit()
-			message = "Voter Added Successfully"
+			try:
+				candidate = Candidate(name, biography, address, phrase)
+				db.session.add(candidate)
+				db.session.commit()
+			except:
+				#send algo back to escrow in case of failure
+				balance = check_balance(address, algod_client)
+				send_algo(algod_client, address, config.escrow, phrase, balance-1000)#subtracted 1000 to compensate for fees
+				error = "Error While Creating Candidate. Try Again"
+				return render_template('create_candidate.html', error=error, message=message)
+			message = "Candidate Added Successfully"
 		else:
 			print("Wrong Key", request.form.get("Key"))
 			error = "Incorrect Admin Key"
@@ -110,28 +181,22 @@ def create_candidate():
 def start_voting():
 	error = ''
 	message = ''
-	global finished
 	if request.method == 'POST':
+		candidates = Candidate.query.all()
 		key = hashing(str(request.form.get('Key')))
 		if key == admin_key:
-			message = reset_votes()
-			finished = False
-		else:
-			error = "Incorrect admin key"
-	return render_template("start.html", message = message, error = error)
-
-
-
-@app.route('/corporatestart', methods = ['POST', 'GET'])
-def start_corporate():
-	error = ''
-	message = ''
-	global corporate_finished
-	if request.method == 'POST':
-		key = hashing(str(request.form.get('Key')))
-		if key == admin_key:
-			message = reset_corporate_votes()
-			corporate_finished = False
+			config = VotingConfig.query.filter_by(id=1).first()
+			if config:
+				#An Ongoing Voting Process
+				if config.finished == False:
+					error = "A Voting Process Is Currently Ongoing. Kindly End to Start A new one."
+					return render_template("start.html", message = message, error = error)
+			else:
+				error = "No Config Found. Please Set Up Config To start a voting process."
+				return render_template("start.html", message = message, error = error)
+			message = reset_votes(candidates, config)
+			config.finished = False #Start A new Voting
+			db.session.commit()
 		else:
 			error = "Incorrect admin key"
 	return render_template("start.html", message = message, error = error)
@@ -141,73 +206,83 @@ def end():
 	error = ''
 	message = ''
 	result = None
-	global finished
 	if request.method == 'POST':
 		key = hashing(str(request.form.get('Key')))
 		if key == admin_key:
-			message, result = count_votes()
-			finished = True
+			config = VotingConfig.query.filter_by(id=1).first()
+			if not config:
+				error = "No Voting Process Has Been Started"
+			else:
+				if config.finished == True:
+					error = "No Ongoing Voting Process"
+				else:
+					candidates = Candidate.query.all()
+					message, result = count_votes(candidates)
+					config.finished = True
+					db.session.commit()
 		else:
 			error = "Incorrect admin key"
 	return render_template("end.html", message = message, error = error, result=result)
 
-@app.route('/endcorporate', methods = ['POST', 'GET'])
-def corporate_end():
-	error = ''
-	message = ''
-	global corporate_finished
-	if request.method == 'POST':
-		key = hashing(str(request.form.get('Key')))
-		if key == admin_key:
-			message = count_corporate_votes()
-			corporate_finished = True
-		else:
-			error = "Incorrect admin key"
-	return render_template('corporateend.html', message = message, error = error)
-"""
 @app.route('/vote', methods = ['POST','GET'])
 def vote():
 	error = ''
 	message = ''
 	global validated
 	validated = False
+	config = VotingConfig.query.filter_by(id=1).first()
+	print(config)
+	if config:
+		finished = config.finished
+		print(finished)
+		if finished:
+			print("Voting Has Finished")
+			candidates = Candidate.query.all()
+			message, result = count_votes(candidates)
+			return render_template("end.html", message = message, error = error, result = result)
+	else:
+		print('No Config')
+		error = "Voting Has Not Started"
+		return render_template('vote.html', message = message, error = error)
+
 	if request.method == 'POST':
-		Social = hashing(str(request.form.get('Social')))
-		Drivers = hashing(str(request.form.get('Drivers')))
-		#cur.execute("SELECT * FROM accounts WHERE SS = %s AND DL = %s",(Social,Drivers))
-		#account = cur.fetchone()
-		#if account:
-		#	cur.execute("DELETE FROM accounts WHERE SS = %s and DL = %s",(Social,Drivers))
-		#	conn.commit()
-		#	validated = True
-		#	return redirect(url_for('submit'))
-		#else:
-		#	error = 'Your info is incorrect'
-	elif finished == True:
-		message = count_votes()
-		return render_template("end.html", message = message, error = error)
+		ssn = hashing(str(request.form.get('Social')))
+		dl= hashing(str(request.form.get('Drivers')))
+		voter = Voter.query.filter_by(dl=dl, ssn=ssn).first()
+		if voter:
+			db.session.delete(voter)
+			db.session.commit()
+			validated = True
+			return redirect(url_for('submit'))
+		else:
+			error = 'Your info is incorrect'
 	return render_template('vote.html', message = message, error = error)
-"""
+
 
 @app.route('/submit', methods = ['POST', 'GET'])
 def submit():
 	error = ''
 	message = ''
 	global validated
+	candidates = []
 	if not validated:
 		return redirect(url_for('vote'))
 	else:
 		if request.method == 'POST':
-			 vote = request.values.get("options")
-			 if vote == 'option1':
-				 vote = "YES"
-				 message = election_voting(vote)
-			 elif vote == 'option2':
-				 vote = "NO"
-				 message = election_voting(vote)
-			 else:
-				 error = "You did not enter a vote"
-	return render_template('submit.html', message = message, error = error)
+			vote = request.values.get("option")
+			if vote:
+				#vote = "YES"
+				message = election_voting(vote)
+				validated = False
+			else:
+				error = "You did not enter a vote"
+		else:
+			candidates = Candidate.query.all()
+	return render_template('submit.html', message = message, error = error, candidates=candidates)
+
+@app.route('/about/')
+def about():
+	return render_template('about.html')
 
 """
 @app.route('/corporate', methods = ['POST','GET'])
@@ -240,7 +315,19 @@ def corporate():
 		return render_template('end.html' ,message = message, error = error)
 	return render_template('corporate.html', message = message, error = error)
 
-
+@app.route('/corporatestart', methods = ['POST', 'GET'])
+def start_corporate():
+	error = ''
+	message = ''
+	global corporate_finished
+	if request.method == 'POST':
+		key = hashing(str(request.form.get('Key')))
+		if key == admin_key:
+			message = reset_corporate_votes()
+			corporate_finished = False
+		else:
+			error = "Incorrect admin key"
+	return render_template("start.html", message = message, error = error)
 
 @app.route('/corporate_creation',methods = ['POST','GET'])
 def corporate_create():
@@ -254,10 +341,19 @@ def corporate_create():
 			conn.commit()
 	return render_template('corporatecreate.html')
 
-@app.route('/about/')
-def about():
-	
-	return render_template('about.html')
+@app.route('/endcorporate', methods = ['POST', 'GET'])
+def corporate_end():
+	error = ''
+	message = ''
+	global corporate_finished
+	if request.method == 'POST':
+		key = hashing(str(request.form.get('Key')))
+		if key == admin_key:
+			message = count_corporate_votes()
+			corporate_finished = True
+		else:
+			error = "Incorrect admin key"
+	return render_template('corporateend.html', message = message, error = error)
 """
 
 if __name__ == "__main__":

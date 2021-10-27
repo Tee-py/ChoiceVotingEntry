@@ -121,15 +121,18 @@ def choice_vote(sender, key, receiver,amount,comment):
 # This function describes a methodology for Electoral Voting on the Choice Coin platform. 
 # It calls the choice_vote() function with the appropriate inputs based on which decision the voter selected. 
 # It is currently defined for two candidates/decisions, but it can be easily amended to include more.
-def election_voting(vote):
+def election_voting(c_addr):
     message = ''
-    if vote == 'YES': # Add more boolean statements for more decisions or candidates.
-        TX_ID = choice_vote(escrow_address,escrow_key,decision_one,100,"Tabulated using Choice Coin") # choice_vote() function called for "YES". 
-        message = "Ballot Tabulated. \n You can validate that your vote was counted correctly at https://testnet.algoexplorer.io/tx/" + TX_ID[1] + "."
-        # AlgoExplorer returned for validation.
-    elif vote == 'NO':
-        TX_ID = choice_vote(escrow_address,escrow_key,decision_two,100,"Tabulated using Choice Coin")
-        message = "Ballot Tabulated. \n You can validate that your vote was counted correctly at https://testnet.algoexplorer.io/tx/" + TX_ID[1] + "." 
+    TX_ID = choice_vote(escrow_address, escrow_key, c_addr, 100 , "Tabulated using Choice Coin") # choice_vote() function called for "YES". 
+    message = {"message": "Ballot Tabulated", "link": f"https://testnet.algoexplorer.io/tx/{TX_ID[1]}"}
+    #message = f"Ballot Tabulated. \n You can validate that your vote was counted correctly at "
+    #if vote == 'YES': # Add more boolean statements for more decisions or candidates.
+    #    TX_ID = choice_vote(escrow_address,escrow_key,decision_one,100,"Tabulated using Choice Coin") # choice_vote() function called for "YES". 
+    #    message = "Ballot Tabulated. \n You can validate that your vote was counted correctly at https://testnet.algoexplorer.io/tx/" + TX_ID[1] + "."
+    #    # AlgoExplorer returned for validation.
+    #elif vote == 'NO':
+    #    TX_ID = choice_vote(escrow_address,escrow_key,decision_two,100,"Tabulated using Choice Coin")
+    #    message = "Ballot Tabulated. \n You can validate that your vote was counted correctly at https://testnet.algoexplorer.io/tx/" + TX_ID[1] + "." 
     return message
 
 # This defines a corporate voting mechanism using Choice Coin. 
@@ -152,10 +155,11 @@ def corporate_voting(vote,stake):
 
 # Returns a dynamic bar-graph showing the results of the vote. 
 # Uses PyPlot for both corporate and electoral voting.
-def show_results(yes_count,no_count):
-    names = ['Candidate 1', 'Candidate 2'] # Define the two decisions.
-    values = [yes_count,no_count] # Fetch the total number of votes for each decision.
-    # Define a new pyplot
+def show_results(result: List):
+    #fetches all names in the result
+    names = [ cd['name'] for cd in result ]
+    #fetches all vote counts in the results
+    values = [ cd['count'] for cd in result ]
     s = io.BytesIO()
     plt.figure(figsize=(9, 3))
     plt.subplot(131)
@@ -165,9 +169,7 @@ def show_results(yes_count,no_count):
     plt.close()
     s = base64.b64encode(s.getvalue()).decode("utf-8").replace("\n", "")
     return s
-    #return '<img align="left" src="data:image/png;base64,%s">' % s
-    #plt.savefig('Figure_1.png')
-    # Return the results.
+    
 
 def show_corporate_results(yes_count,no_count):
     names = ['Decision 1', 'Decision 2']
@@ -178,13 +180,21 @@ def show_corporate_results(yes_count,no_count):
     plt.suptitle('Corporate Voting Results')
     plt.savefig('/home/archie/Inital_Demo/static/img/Figure_2.png')
 
-# Counts the total number of votes to return a statement regarding which candidate has won.
+# Counts the total number of votes to return a statement regarding which candidate has won and base64 image of the election results.
 # Applies to both corporate and electoral voting.
-def count_votes():
-    yes_count = count(decision_one)
-    no_count = count(decision_two)
-    result = show_results(yes_count,no_count)
-    if yes_count > no_count:
+def count_votes(candidates):
+    winner_name = None
+    winner_votes = 0
+    results = []
+    for candidate in candidates:
+        vote_count = count(candidate.address)
+        if vote_count/100 > winner_votes:
+            winner_name = candidate.name
+            winner_votes = vote_count/100
+        results.append({"name": candidate.name, "count": vote_count/100})
+    image = show_results(results)
+    return f"The Voting Process has ended. {winner_name} received the most votes with {winner_votes} votes.", image
+    """if yes_count > no_count:
         if yes_count == 1:
             return "The Voting Process has ended. Candidate One received the most votes with {0} vote.".format(yes_count), result
         else:
@@ -194,7 +204,7 @@ def count_votes():
             return "The Voting Process has ended. Candidate Two received the most votes with {0} vote.".format(no_count), result
         else:
             return "The Voting Process has ended. Candidate Two received the most votes with {0} votes.".format(no_count), result
-
+    
     else:
         # Random sample generated from adiabatic quantum computer.
         # Generated using QunatumQuery.py.
@@ -205,6 +215,7 @@ def count_votes():
             return "Tie. The Quantum Oracle selects Candidate One!", result
         else:
             return "Tie. The Quantum Oracle selects Candidate Two!", result
+    """
 
 def count_corporate_votes():
     yes_count = count(corporate_decision_one)
@@ -227,13 +238,25 @@ def count_corporate_votes():
 
 # This function resets the voting accounts to start a new voting process. 
 # It uses the clawback functionality built into Choice Coin to send the Choice Coin back to the main escrow account.
-def reset_votes():
+def reset_votes(candidates, config):
     message = ''
     params = algod_client.suggested_params()
-    yes_count = count(decision_one)
-    no_count = count(decision_two)
+    for candidate in candidates:
+        votes = count(candidate.address)
+        print(f"This is the votes--> {votes}")
+        if votes > 0:
+            transaction = AssetTransferTxn(candidate.address, params, config.escrow, votes, choice_id, note="Vote Ended.")
+            #transaction = AssetTransferTxn(clawback_address, params, escrow_address, votes, choice_id, revocation_target = candidate.address)
+            signature = transaction.sign(mnemonic.to_private_key(candidate.phrase))
+            algod_client.send_transaction(signature)
+        algo_balance = check_balance(candidate.address, algod_client)
+        print(f"Algo Balance--> {algo_balance}")
+        #Todo: send algo back to escrow wallet.
+        #if algo_balance > 1000:
+        #    send_algo(algod_client, candidate.address, config.escrow, candidate.phrase, algo_balance-1000)
+    
     # Fetches the total number of Choice Coin in each account.
-    if yes_count > 0:
+    """if yes_count > 0:
         transaction_2 = AssetTransferTxn(clawback_address,params,escrow_address,yes_count,choice_id,revocation_target = decision_one)
         signature_2 = transaction_2.sign(clawback_key)
         algod_client.send_transaction(signature_2)
@@ -241,7 +264,7 @@ def reset_votes():
     if no_count > 0:
         transaction_3 = AssetTransferTxn(clawback_address,params,escrow_address,no_count,choice_id,revocation_target = decision_two)
         signature_3 = transaction_3.sign(clawback_key)
-        algod_client.send_transaction(signature_3)
+        algod_client.send_transaction(signature_3)"""
     message = 'Vote accounts reset. New Voting Process started.'
     return message
 
