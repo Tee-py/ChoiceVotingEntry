@@ -185,15 +185,40 @@ def show_corporate_results(yes_count,no_count):
 def count_votes(candidates):
     winner_name = None
     winner_votes = 0
+    labels = []
+    colors = []
     results = []
+    vote_list = []
     for candidate in candidates:
         vote_count = count(candidate.address)
         if vote_count/100 > winner_votes:
             winner_name = candidate.name
             winner_votes = vote_count/100
         results.append({"name": candidate.name, "count": vote_count/100})
-    image = show_results(results)
-    return f"The Voting Process has ended. {winner_name} received the most votes with {winner_votes} votes.", image
+        labels.append(candidate.name)
+        colors.append("#"+''.join([random.choice('0123456789ABCDEF') for i in range(6)]))
+        vote_list.append(vote_count/100)
+    #image = show_results(results)
+    chart_data = {
+        "labels": labels,
+        "colors": colors,
+        "data": vote_list
+    }
+    is_a_tie = vote_list.count(vote_list[0]) == len(vote_list)
+    if is_a_tie:
+        print("A tie")
+        #Perform Quantum Sampling
+        quantum_sample = [ random.randrange(0, len(vote_list))]
+        Q = random.choice(quantum_sample)
+        if Q:
+            winner_name = results[Q]["name"]
+            return f"Tie. The Quantum Oracle Select {winner_name}.", chart_data
+        else:
+            Q = random.choice(quantum_sample)
+            winner_name = results[Q]["name"]
+            return f"Tie. The Quantum Oracle Select {winner_name}.", chart_data
+    else:
+        return f"The Voting Process has ended. {winner_name} received the most votes with {winner_votes} votes.", chart_data
     """if yes_count > no_count:
         if yes_count == 1:
             return "The Voting Process has ended. Candidate One received the most votes with {0} vote.".format(yes_count), result
