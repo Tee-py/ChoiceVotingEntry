@@ -20,7 +20,7 @@
         <div class="col-md-3"></div>
         <div class="col-md-6" style="padding: 5rem;">
           <div class="judul">
-            <h1>Add a candidate/decision to the decentralized database</h1>
+            <h1>Add Position</h1>
           </div>
           <p>Administrative Key Required.</p>
             {% if message %}
@@ -42,18 +42,11 @@
               <label for="name" class="form-label">Name</label>
               <input type="text" class="form-control" id="name" name="Name" required>
             </div>
-            <div class="mb-3">
-              <select class="form-select" aria-label="Select Position" name="pos">
-                {% for pos in positions %}
-                  <option value="{{pos.id}}">{{pos.name}}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="mb-3">
-              <label for="bio" class="form-label">Candidate Biography</label>
-              <textarea type="text" class="form-control" id="bio" name="bio" required></textarea>
-            </div>
             <!--div class="mb-3">
+              <label for="ssn" class="form-label">Social Security Number</label>
+              <input type="text" class="form-control" id="ssn" name="Social" required>
+            </div>
+            <div class="mb-3">
               <label for="DL" class="form-label">Driver's License</label>
               <input type="text" class="form-control" id="DL" name="Drivers" required>
             </div-->
@@ -62,13 +55,12 @@
               <input type="password" class="form-control" id="password" name="Key" required>
             </div>
             <div class="d-grid gap-2">
-              <button class="btn btn-primary" type="submit">Add Candidate</button>
+              <button class="btn btn-primary" type="submit">Add Position</button>
             </div>
           </form>
         </div>
         <div class="col-md-3"></div>
       </div>
-    </div>
     </div>
     {% include 'footer.html' %}
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>

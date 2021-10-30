@@ -18,6 +18,32 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
+#Model To create Position 
+class Position(db.Model):
+	id = db.Column(db.Integer, primary_key = True)
+	name = db.Column(db.String(100), unique = True)
+
+	def __init__(self, name) -> None:
+		self.name = name
+
+#Model To store candidates
+class Candidate(db.Model):
+	id = db.Column(db.Integer, primary_key = True)
+	name = db.Column(db.String(100), unique = True)
+	position_id = db.Column(db.Integer, db.ForeignKey("position.id"))
+	position = db.relationship('Position',
+        backref=db.backref('candidates', lazy=True)) 
+	biography = db.Column(db.String(100))
+	address = db.Column(db.String(512), unique = True)
+	phrase = db.Column(db.String(512), unique = True)
+
+	def __init__(self, name, biography, address, phrase, position):
+		self.name = name
+		self.biography = biography
+		self.address = address
+		self.phrase = phrase
+		self.position_id = position
+
 #Model To Store Voters in The database
 class Voter(db.Model):
 	id = db.Column(db.Integer, primary_key = True)
@@ -30,19 +56,21 @@ class Voter(db.Model):
 		self.dl = dl
 		self.ssn = ssn
 
-#Model To store candidates
-class Candidate(db.Model):
+#Model To Store Voting Slot
+class VotingSlot(db.Model):
 	id = db.Column(db.Integer, primary_key = True)
-	name = db.Column(db.String(100), unique = True)
-	biography = db.Column(db.String(100))
-	address = db.Column(db.String(512), unique = True)
-	phrase = db.Column(db.String(512), unique = True)
+	voter_id = db.Column(db.Integer, db.ForeignKey("voter.id"))
+	position_id = db.Column(db.Integer, db.ForeignKey("position.id"))
+	voter = db.relationship('Voter',
+        backref=db.backref('slots', lazy=True)) 
+	position = db.relationship('Position',
+        backref=db.backref('voting_slots', lazy=True)) 
 
-	def __init__(self, name, biography, address, phrase):
-		self.name = name
-		self.biography = biography
-		self.address = address
-		self.phrase = phrase
+	def __init__(self, voter, position):
+		self.voter = voter
+		self.position = position
+
+
 
 #Model To Store Config for Voting
 class VotingConfig(db.Model):
@@ -111,6 +139,26 @@ def set_config():
 			error = "Incorrect Admin Key"
 	return render_template('config.html', error=error, message=message)
 
+@app.route('/position/create', methods = ['POST','GET'])
+def add_position():
+	error = ""
+	message = ""
+	if request.method == 'POST':
+		name = request.form.get('Name')
+		Key = hashing(str(request.form.get('Key')))
+		
+		if str(Key) == admin_key:
+			print("Key is correct")
+			#checks if voter exists in db
+			position = Position(name=name)
+			db.session.add(position)
+			db.session.commit()
+			message = "Position Added Successfully"
+		else:
+			print("Wrong Key", request.form.get("Key"))
+			error = "Incorrect Admin Key"
+	return render_template('pos_create.html', error=error, message=message)
+
 @app.route('/voter/create', methods = ['POST','GET'])
 def add_voter():
 	error = ""
@@ -130,6 +178,13 @@ def add_voter():
 			voter = Voter(name, ssn, dl)
 			db.session.add(voter)
 			db.session.commit()
+			positions = db.session.query(Position).all()
+			for pos in positions:
+				#Create VotingSlots For All Positions
+				slot = VotingSlot(voter=voter, position=pos)
+				db.session.add(slot)
+				db.session.commit()
+			
 			message = "Voter Added Successfully"
 		else:
 			print("Wrong Key", request.form.get("Key"))
@@ -142,6 +197,7 @@ def add_candidate():
 	message = ""
 	if request.method == 'POST':
 		name = request.form.get('Name')
+		position = request.form.get('pos')
 		biography = request.form.get('bio')
 		Key = hashing(str(request.form.get('Key')))
 		if str(Key) == admin_key:
@@ -162,10 +218,11 @@ def add_candidate():
 				return render_template('create_candidate.html', error=error, message=message)
 			asset_optin(algod_client, [{"addr": address, "key": mnemonic.to_private_key(phrase)}], choice_id)
 			try:
-				candidate = Candidate(name, biography, address, phrase)
+				candidate = Candidate(name, biography, address, phrase, position=position)
 				db.session.add(candidate)
 				db.session.commit()
-			except:
+			except Exception as e:
+				raise e
 				#send algo back to escrow in case of failure
 				balance = check_balance(address, algod_client)
 				send_algo(algod_client, address, config.escrow, phrase, balance-1000)#subtracted 1000 to compensate for fees
@@ -175,7 +232,8 @@ def add_candidate():
 		else:
 			print("Wrong Key", request.form.get("Key"))
 			error = "Incorrect Admin Key"
-	return render_template('create_candidate.html', error=error, message=message)
+	positions = db.session.query(Position).all()
+	return render_template('create_candidate.html', error=error, message=message, positions=positions)
 
 @app.route('/start', methods = ['POST', 'GET'])
 def start_voting():
@@ -250,8 +308,8 @@ def vote():
 		dl= hashing(str(request.form.get('Drivers')))
 		voter = Voter.query.filter_by(dl=dl, ssn=ssn).first()
 		if voter:
-			db.session.delete(voter)
-			db.session.commit()
+			#db.session.delete(voter)
+			#db.session.commit()
 			validated = True
 			return redirect(url_for('submit'))
 		else:
@@ -278,7 +336,7 @@ def submit():
 				error = "You did not enter a vote"
 		else:
 			candidates = Candidate.query.all()
-	return render_template('submit.html', message = message, error = error, candidates=candidates)
+	return render_template('submit_copy.html', message = message, error = error, candidates=candidates)
 
 @app.route('/about/')
 def about():
