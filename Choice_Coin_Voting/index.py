@@ -18,6 +18,8 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
+admin_key = "536aecc94ecdd1d499e1496d658c790432f25199f3c810761dbe1d6605da9588cb0c32cd2677cf883e8af59b2d157146bd3b22e3554fd4e574abfa1a41efc41f"
+
 #Model To create Position 
 class Position(db.Model):
 	id = db.Column(db.Integer, primary_key = True)
@@ -85,7 +87,7 @@ class VotingConfig(db.Model):
 		self.escrow = escrow
 		self.escrow_phrase = phrase
 	
-admin_key = "536aecc94ecdd1d499e1496d658c790432f25199f3c810761dbe1d6605da9588cb0c32cd2677cf883e8af59b2d157146bd3b22e3554fd4e574abfa1a41efc41f"
+
 
 finished = False
 corporate_finished = False
