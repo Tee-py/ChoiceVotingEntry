@@ -182,14 +182,22 @@ def show_corporate_results(yes_count,no_count):
 
 # Counts the total number of votes to return a statement regarding which candidate has won and base64 image of the election results.
 # Applies to both corporate and electoral voting.
-def count_votes(candidates):
-    winner_name = None
-    winner_votes = 0
-    labels = []
-    colors = []
-    results = []
-    vote_list = []
-    for candidate in candidates:
+def count_votes(positions):
+    #winner_list = []
+    #winner_votes = 0
+    data_arr = []
+    #votes_arr = []
+    for pos in positions:
+        p_labs = []
+        p_data = []
+        for cd in pos.candidates:
+            p_labs.append(cd.name)
+            vote_count = count(cd.address)
+            p_data.append(vote_count/100)
+        data_arr.append({"id": pos.id, "position": pos.name, "labels": p_labs, "data": p_data})
+
+    return "Voting As Ended. View Results Below", data_arr
+    """   for candidate in candidates:
         vote_count = count(candidate.address)
         if vote_count/100 > winner_votes:
             winner_name = candidate.name
@@ -219,7 +227,7 @@ def count_votes(candidates):
             return f"Tie. The Quantum Oracle Select {winner_name}.", chart_data
     else:
         return f"The Voting Process has ended. {winner_name} received the most votes with {winner_votes} votes.", chart_data
-    """if yes_count > no_count:
+    if yes_count > no_count:
         if yes_count == 1:
             return "The Voting Process has ended. Candidate One received the most votes with {0} vote.".format(yes_count), result
         else:

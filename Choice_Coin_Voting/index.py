@@ -274,8 +274,10 @@ def end():
 				if config.finished == True:
 					error = "No Ongoing Voting Process"
 				else:
-					candidates = Candidate.query.all()
-					message, result = count_votes(candidates)
+					#candidates = Candidate.query.all()
+					positions = Position.query.all()
+					message, result = count_votes(positions)
+					print(result)
 					config.finished = True
 					db.session.commit()
 		else:
@@ -287,6 +289,7 @@ def vote():
 	error = ''
 	message = ''
 	global validated
+	global voter_id
 	validated = False
 	config = VotingConfig.query.filter_by(id=1).first()
 	print(config)
@@ -295,8 +298,8 @@ def vote():
 		print(finished)
 		if finished:
 			print("Voting Has Finished")
-			candidates = Candidate.query.all()
-			message, result = count_votes(candidates)
+			positions = Position.query.all()
+			message, result = count_votes(positions)
 			return render_template("end.html", message = message, error = error, result = result)
 	else:
 		print('No Config')
@@ -308,35 +311,52 @@ def vote():
 		dl= hashing(str(request.form.get('Drivers')))
 		voter = Voter.query.filter_by(dl=dl, ssn=ssn).first()
 		if voter:
-			#db.session.delete(voter)
-			#db.session.commit()
-			validated = True
-			return redirect(url_for('submit'))
+			slots = VotingSlot.query.filter_by(voter=voter).first()
+			if not slots:
+				error = "No More Voting Slots"
+			else:
+				validated = True
+				voter_id = voter.id
+				return redirect(url_for('submit'))
 		else:
 			error = 'Your info is incorrect'
 	return render_template('vote.html', message = message, error = error)
 
+@app.route('/faq', methods = ['GET'])
+def faq():
+	return render_template('faq.html')
 
 @app.route('/submit', methods = ['POST', 'GET'])
 def submit():
 	error = ''
 	message = ''
 	global validated
-	candidates = []
+	global voter_id
+	positions = Position.query.all()
+	candidates = Candidate.query.all()
+	messages = []
 	if not validated:
 		return redirect(url_for('vote'))
 	else:
 		if request.method == 'POST':
-			vote = request.values.get("option")
+			vote = request.values
 			if vote:
-				#vote = "YES"
-				message = election_voting(vote)
-				validated = False
+				if "default" in vote.values():
+					error = "One Or More Candidate Invalid."
+				elif not validated:
+					error = "Voting Slots Exhausted"
+				else:
+					for addr in vote.values():
+						message = election_voting(addr)
+						messages.append(message)
+					validated = False
+					slots = VotingSlot.query.filter_by(voter_id=voter_id)
+					slots.delete()
+					db.session.commit()
+					voter_id = None
 			else:
 				error = "You did not enter a vote"
-		else:
-			candidates = Candidate.query.all()
-	return render_template('submit_copy.html', message = message, error = error, candidates=candidates)
+	return render_template('submit_copy.html', messages = messages, error = error, positions=positions, candidates=candidates)
 
 @app.route('/about/')
 def about():

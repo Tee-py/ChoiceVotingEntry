@@ -18,46 +18,67 @@
     <div class="container">
       <div class="row">
         <div class="col-md-3"></div>
-        <div class="col-md-6" style="padding: 5rem;">
+        <div class="col-md-6" style="padding: 1rem;">
           <div class="judul">
-            <h1>Start A New Voting Process</h1>
+            <h1>Frequently Asked Questions</h1>
           </div>
-          <p>Administrative Key Required.</p>
-            {% if message %}
-              <div class="alert alert-success alert-dismissible fade show" role="alert">
-                <strong>{{message}}!</strong>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        <div class="col-md-3"></div>
+        <div class="col-md-3"></div>
+        <div class="col-md-6" style="padding: 1rem;">
+          <div class="accordion" id="accordionExample">
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="headingOne">
+                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                  USE CASE
+                </button>
+              </h2>
+              <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#accordionExample">
+                <div class="accordion-body">
+                  <strong>
+                    The codebase was used to conduct an election where there are various positions and candidates contesting for a position.
+                    We have positions and candidates added to each positions and each voter can chooose candidate from each position to vote for.
+                  </strong>
+                </div>
               </div>
-            {% else %}
-              {% if error %}
-              <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <strong>{{error}}!</strong>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="headingTwo">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                  CHANGES MADE TO THE SOFTWARE
+                </button>
+              </h2>
+              <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#accordionExample">
+                <div class="accordion-body">
+                  <li>Improved UI Forms</li>
+                  <li>Added new Database models. Positions, Candidate, Config</li>
+                  <li>Adding automatic generation of candidate algorand address and asset-optin for candidates accounts.</li>
+                  <li>Setting Voting Configs like escrow address.</li>
+                  <li>Using ChartJS to visualize voting results.</li>
+                  <li>Allows creation of multiple candidates and positions.</li>
+                  <li>Adding utility functions to generate algorand address, opt-in asset into candidate's account, send-alogrand, validating escrow address and mnemonic, check_algorand balance.</li>
+                  <!--strong>This is the second item's accordion body.</strong> It is hidden by default, until the collapse plugin adds the appropriate classes that we use to style each element. These classes control the overall appearance, as well as the showing and hiding via CSS transitions. You can modify any of this with custom CSS or overriding our default variables. It's also worth noting that just about any HTML can go within the <code>.accordion-body</code--->
+                </div>
               </div>
-            {% endif %}
-            {% endif %}
-            
-          <form action="" method="post">
-            <!--div class="mb-3">
-              <label for="name" class="form-label">Name</label>
-              <input type="text" class="form-control" id="name" name="Name" required>
             </div>
-            <div class="mb-3">
-              <label for="ssn" class="form-label">Social Security Number</label>
-              <input type="text" class="form-control" id="ssn" name="Social" required>
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="headingThree">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                  TECHNICAL CHALLENGES FACED AND APPROACH
+                </button>
+              </h2>
+              <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#accordionExample">
+                <div class="accordion-body">
+                  <li><strong>Using ClawBack to revoke transactions:</strong> There was a problem using choice clawback address to sign transactions to send back choice token at the end of the voting process. This was solved by storing candidate's mnemonic on generation of address and using it to send back the token to the escrow's address.</li>
+                </div>
+              </div>
+              <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#accordionExample">
+                <div class="accordion-body">
+                  <li><strong>Computing and Displaying Results For Separate Positions:</strong> .</li>
+                </div>
+              </div>
             </div>
-            <div class="mb-3">
-              <label for="DL" class="form-label">Driver's License</label>
-              <input type="text" class="form-control" id="DL" name="Drivers" required>
-            </div-->
-            <div class="mb-3">
-              <label for="key" class="form-label">Admin Key</label>
-              <input type="password" class="form-control" id="password" name="Key" required>
-            </div>
-            <div class="d-grid gap-2">
-              <button class="btn btn-primary" type="submit">Submit</button>
-            </div>
-          </form>
+          </div>
         </div>
         <div class="col-md-3"></div>
       </div>

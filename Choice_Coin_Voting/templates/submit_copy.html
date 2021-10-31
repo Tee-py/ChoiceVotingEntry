@@ -19,29 +19,15 @@
       <div class="text" style="text-align: center;">
         <h1>Voting Center</h1>
       </div>
-      <div class="row">
 
-        <div class="card">
-          <h5 class="card-header">Chief Executive Officer</h5>
-          <div class="card-body">
-            <h5 class="card-title">Candy 1</h5>
-            <p class="card-text">bio bio</p>
-            <strong class="card-title">Null</strong>
-            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="" style="margin-top: 1rem;">Click Here To Vote</button>
+      <div class="row">
+        <div class="col-md-3"></div>
+        <div class="col-md-6" style="padding: 0.5rem;">
+          <div class="d-grid gap-2 d-md-block">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#c-prof" style="margin-top: 1rem;">Click Here To View Candidates</button>
           </div>
-          <div class="card-body">
-            <h5 class="card-title">Candy 1</h5>
-            <p class="card-text">bio bio</p>
-            <strong class="card-title">Null</strong>
-            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="`" style="margin-top: 1rem;">Click Here To Vote</button>
-          </div>
-          
-          <!--div class="card-body">
-            <h5 class="card-title">Special title treatment</h5>
-            <p class="card-text">With supporting text below as a natural lead-in to additional content.</p>
-            <a href="#" class="btn btn-primary">Go somewhere</a>
-          </div-->
         </div>
+        <div class="col-md-3"></div>
         <svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
           <symbol id="check-circle-fill" fill="currentColor" viewBox="0 0 16 16">
             <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
@@ -54,20 +40,17 @@
           </symbol>
         </svg>
         
-        {% if message %}
+        {% if messages %}
+          {% for msg in messages %}
           <div class="alert alert-success d-flex align-items-center alert-dismissible fade show" role="alert">
             <svg class="bi flex-shrink-0 me-2" width="24" height="24" role="img" aria-label="Success:"><use xlink:href="#check-circle-fill"/></svg>
             <div>
-              {{message.message}}!
+              {{msg.message}}!
             </div>
-            <a href='{{message.link}}' class='btn btn-success'>View In Explorer</a>
+            <a href='{{msg.link}}' class='btn btn-success'>View In Explorer</a>
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
           </div>
-              <!--div class="alert alert-success alert-dismissible fade show" role="alert">
-                <strong>{{message.message}}!</strong>
-                <a href='{{message.link}}' class='btn btn-success'>View In Explorer</a>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-              </div-->
+          {% endfor %}
             {% else %}
               {% if error %}
               <div class="alert alert-danger d-flex align-items-center alert-dismissible fade show" role="alert">
@@ -77,74 +60,52 @@
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
               </div>
-              <!--div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <strong>{{error}}!</strong>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-              </div-->
             {% endif %}
             {% endif %}
-        {% for candidate in candidates %}
-        <div class="modal fade" id="candidate{{candidate.id}}" tabindex="-1" aria-labelledby="candidate{{candidate.id}}Label" aria-hidden="true">
+        <div class="modal fade" id="c-prof" tabindex="-1" aria-labelledby="cProfLabel" aria-hidden="true">
           <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
               <div class="modal-header">
-                <h5 class="modal-title" id="candidate{{candidate.id}}ModalLabel">Confirm Vote</h5>
+                <h5 class="modal-title" id="cProfModalLabel">Candidate Details</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
               </div>
-              <div class="modal-body">
-                Would You Like To Proceed To Vote <strong>{{candidate.name}}</strong> for the Position of <strong>{{candidate.position.name}}</strong> ?
-              </div>
-              <div class="modal-footer">
-                <button type="button" class="btn btn-danger" data-bs-dismiss="modal">No</button>
-                <form action="" method = "post">
-                  <input type="hidden" class="form-control" id="cand{{candidate.id}}" value="{{candidate.address}}" name="option">
-                  <button type="submit" class="btn btn-primary">Yes</button>
-                </form>
-                
+              <div class="modal-body text-center">
+                {% for cd in candidates %}
+                <div class="col-md-6">
+                  <div class="card" style="width: 28rem; margin-top: 1rem;">
+                    <div class="card-body">
+                      <h5 class="card-title">{{cd.name}}</h5>
+                      <p class="card-text">{{cd.biography}}</p>
+                      <strong class="card-title">{{cd.position.name}}</strong>
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
               </div>
             </div>
           </div>
         </div>
 
-        <div class="col-md-3">
-          <div class="card" style="width: 18rem; margin-top: 1rem;">
-            <div class="card-body">
-              <h5 class="card-title">{{candidate.name}}</h5>
-              <p class="card-text">{{candidate.biography}}</p>
-              <strong class="card-title">{{candidate.position.name}}</strong>
-              <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#candidate{{candidate.id}}" style="margin-top: 1rem;">Click Here To Vote</button>
+        
+        <div class="col-md-3"></div>
+        <div class="col-md-6" style="margin-top: 2rem;">
+          <form class="form-control" action="" method = "post" style="padding: 1rem;">
+            {% for pos in positions %}
+            <select class="form-select" name="{{pos.id}}" aria-label="" style="margin-bottom: 1rem;" required>
+              <option value="default">{{pos.name}}</option>
+              {% for cd in pos.candidates %}
+                <option value="{{cd.address}}">{{cd.name}}</option>
+              {% endfor %}
+            </select>
+            {% endfor %}
+            <div class="d-grid gap-2">
+              <button class="btn btn-primary" type="submit">Submit</button>
             </div>
-          </div>
+          </form>
         </div>
-        {% endfor %}
+        <div class="col-md-3"></div>
       </div>
     </div>
-    <!--div>
-    {% if message %}
-        <h3><p style="color:green">{{ message }}</p></h3>
-{% else %}
-    	    {% if error %}
-        <p style="color:red">{{ error }}</p>
-    		{% endif %}
-    <div class="container">
-      <div class="judul">
-        <h1>Voting with Choice Coin</h1>
-      </div>
-
-      <p>Your identity has been validated. Submit your vote here:</p>
-
-<form action="" method = "post">
-  <label for = "main_3">Candidates:</label>
-  {% for candidate in candidates %}
-    <input type="radio" name="option" id="{{candidate.id}}" value="{{candidate.address}}">{{candidate.name}}</input><br>
-  {% endfor %}
-  <input type="radio" name="options" id="option2" value="option2">Candidate Two</input<br>
-
-  <input class="button" type="submit" value="Submit Ballot">
-</form>
-{% endif %}
-    </div>
-  </div-->
     {% include 'footer.html' %}
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
