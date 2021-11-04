@@ -26,7 +26,7 @@ import base64
 matplotlib.use('TkAgg')
 matplotlib.use('agg') #or matplotlib.pyplot.switch_backend('Agg')
 algod_address = "https://testnet-algorand.api.purestake.io/ps2" # Put Algod Client address here
-algod_token = "6HrMYd5r3C59gsCd1zHip5JgDDVwGTAu61L8wQ28" # Put Algod Token here
+algod_token = "" # Put Algod Token here
 headers = {"X-API-Key": algod_token }
 # Initializes client for node.
 algod_client = algod.AlgodClient(algod_token, algod_address, headers)
@@ -38,44 +38,6 @@ algod_client = algod.AlgodClient(algod_token, algod_address, headers)
 #escrow_mnemonic = "group dice custom favorite usage stuff stable glimpse mansion call father grape engine club hawk emerge latin any gravity canal galaxy rebel acid about exotic" # Put in main fund receiver_mnemonic here
 #escrow_key = mnemonic.to_private_key(escrow_mnemonic)
 choice_id = 21364625 # Official Test Asset ID for Choice Coin
-
-# Decisions.
-#To add more decisions for the election process, add the address for the new decision here.
-#Then, add an appropriate boolean statement at line 100 of this file. Be sure to also add additional 
-#counts at line 148 of this file as well. 
-#decision_one = "5VXL2O2A4Q3766XYDS4DUQDLEDK7KWYL2TRK2AIY6L2DOKPIQIATNEYWNY"
-#decision_one_mnemonic = "crop spoon stock fame erase away lemon cheap sunset relax mouse industry daring need clock icon protect harsh exhibit hole together lobster student about awkward"
-#decision_one_key = mnemonic.to_private_key(decision_one_mnemonic)
-
-#decision_two = "QDPYOTTGDVHGIL7DHJXJP4MOXPBA4Z2NKCWJMGIUXTQHHZHDS72JWBMBMQ"
-#decision_two_mnemonic = "tooth cabin child plastic fabric day assume case caught winter ranch virus tide deposit bind antique canvas august rocket stairs seminar card topic able sample"
-#decision_two_key = mnemonic.to_private_key(decision_two_mnemonic)
-
-#corporate_decision_one = ""
-#corporate_decision_two = ""
-
-# Clawback Address required to reset accounts to start new voting process.
-# Sets up accounts for both the regular election process and the corporate decision process. 
-# Add more accounts to adjust for more decisions.
-#clawback_address = "2UM6QNIORCWQUE4R3YY2RYOQ4VHEXVVUOS3RB3OF5X5X6AQIST7CEBOFZY"
-#clawback_mnemonic = "between source bronze deliver robot wrap pull own power tank art patient slight analyst crew rotate theme liquid birth loop heart decline seven ability spread"
-#clawback_key = mnemonic.to_private_key(clawback_mnemonic)
-
-# OPT-IN CHOICE INTO THREE ACCOUNTS
-# Check if asset_id is in account asset holdings prior
-# to opt-in
-#addresses = [
-#    {"addr": decision_one, "key": decision_one_key}, 
-#    {"addr": decision_two, "key": decision_two_key}, 
-#    {"addr": clawback_address, "key": clawback_key},
-#    {"addr": escrow_address, "key": escrow_key}
-#]
-#asset_optin(algod_client, addresses, choice_id)
-
-
-
-
-
 
 
 # This function counts the number of Choice Coin in an account. 
